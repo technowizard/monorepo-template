@@ -1,0 +1,29 @@
+{
+  "tasks": {
+    "heading": "tugas",
+    "remaining": "{{count}} tersisa",
+    "addPlaceholder": "tambah tugas...",
+    "filters": {
+      "all": "semua",
+      "active": "aktif",
+      "done": "selesai"
+    },
+    "empty": {
+      "all": "belum ada tugas.",
+      "active": "tidak ada tugas aktif.",
+      "done": "belum ada yang diselesaikan."
+    },
+    "error": {
+      "load": "gagal memuat tugas.",
+      "retry": "coba lagi"
+    },
+    "aria": {
+      "markComplete": "Tandai \"{{name}}\" sebagai selesai",
+      "markIncomplete": "Tandai \"{{name}}\" sebagai belum selesai",
+      "deleteTask": "Hapus \"{{name}}\"",
+      "addTask": "Tambah tugas",
+      "toggleTheme": "Ganti tema",
+      "switchLanguage": "Ganti bahasa"
+    }
+  }
+}

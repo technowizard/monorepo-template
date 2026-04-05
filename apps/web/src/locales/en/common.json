@@ -1,0 +1,29 @@
+{
+  "tasks": {
+    "heading": "tasks",
+    "remaining": "{{count}} remaining",
+    "addPlaceholder": "add a task...",
+    "filters": {
+      "all": "all",
+      "active": "active",
+      "done": "done"
+    },
+    "empty": {
+      "all": "no tasks yet.",
+      "active": "no active tasks.",
+      "done": "nothing completed yet."
+    },
+    "error": {
+      "load": "failed to load tasks.",
+      "retry": "retry"
+    },
+    "aria": {
+      "markComplete": "Mark \"{{name}}\" as complete",
+      "markIncomplete": "Mark \"{{name}}\" as incomplete",
+      "deleteTask": "Delete \"{{name}}\"",
+      "addTask": "Add task",
+      "toggleTheme": "Toggle theme",
+      "switchLanguage": "Switch language"
+    }
+  }
+}
