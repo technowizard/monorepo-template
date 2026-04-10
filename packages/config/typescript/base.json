@@ -17,6 +17,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
     "outDir": "dist",
     "baseUrl": ".",
     "paths": {
