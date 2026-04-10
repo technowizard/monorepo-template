@@ -14,7 +14,7 @@ import { env } from './env-config.js';
 import { errorResponse, HttpStatus } from './response.js';
 import type { AppBindings, AppOpenAPI } from './types.js';
 
-const defaultHook: Hook<any, AppBindings, any, any> = (result, c) => {
+const defaultHook: Hook<unknown, AppBindings, string, unknown> = (result, c) => {
   if (!result.success) {
     return c.json(
       errorResponse('Validation failed', HttpStatus.UNPROCESSABLE_ENTITY, result.error),
@@ -31,10 +31,7 @@ export function createRouter() {
 }
 
 export default function createApp() {
-  const app = new OpenAPIHono<AppBindings>({
-    strict: false,
-    defaultHook
-  });
+  const app = createRouter();
 
   const corsOptions = env.isDevelopment
     ? {
