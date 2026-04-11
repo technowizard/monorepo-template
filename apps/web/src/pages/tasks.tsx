@@ -1,42 +1,36 @@
 import { MoonIcon, SunIcon } from '@phosphor-icons/react';
-import { useMemo } from 'react';
+import { useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { useGetTasks } from '@/features/tasks/api/get-tasks';
+import type { TaskFilter } from '@/features/tasks/api/get-tasks';
 import { CreateTaskForm } from '@/features/tasks/components/create-task-form';
 import { TaskList } from '@/features/tasks/components/task-list';
 import { useLanguage } from '@/hooks/use-language';
 import { useThemeToggle } from '@/hooks/use-theme-toggle';
-import { useTaskFilterStore } from '@/stores/task-filter';
-import type { TaskFilter } from '@/stores/task-filter';
+
+import { Route } from '@/routes/index';
 
 export function TasksPage() {
-  const filter = useTaskFilterStore.useFilter();
-  const setFilter = useTaskFilterStore.useSetFilter();
+  const { filter } = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
 
   const { toggle: toggleTheme } = useThemeToggle();
   const { next: nextLang, toggle: toggleLanguage } = useLanguage();
   const { t } = useTranslation('common');
 
-  const { data, isLoading, isError, refetch } = useGetTasks();
+  const { data, isLoading, isError, refetch } = useGetTasks({ filter });
+
+  // always read the unfiltered list for the "N remaining" badge
+  const { data: allData } = useGetTasks({ filter: 'all' });
+  const activeCount = (allData?.result ?? []).filter((t) => !t.completed).length;
 
   const tasks = data?.result ?? [];
 
-  const filteredTasks = useMemo(() => {
-    if (filter === 'active') {
-      return tasks.filter((t) => !t.completed);
-    }
-
-    if (filter === 'done') {
-      return tasks.filter((t) => t.completed);
-    }
-
-    return tasks;
-  }, [tasks, filter]);
-
-  const activeCount = tasks.filter((t) => !t.completed).length;
+  const setFilter = (value: TaskFilter) =>
+    navigate({ search: (prev) => ({ ...prev, filter: value }) });
 
   const filters: { label: string; value: TaskFilter }[] = [
     { label: t('tasks.filters.all'), value: 'all' },
@@ -106,7 +100,7 @@ export function TasksPage() {
         </div>
 
         <TaskList
-          tasks={filteredTasks}
+          tasks={tasks}
           isLoading={isLoading}
           isError={isError}
           filter={filter}

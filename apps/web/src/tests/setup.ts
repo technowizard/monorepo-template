@@ -1,4 +1,19 @@
 import '@testing-library/jest-dom';
+
+// jsdom doesn't implement window.matchMedia. stub it so ThemeProvider doesn't throw
+Object.defineProperty(window, 'matchMedia', {
+  writable: true,
+  value: (query: string) => ({
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: () => {},
+    removeListener: () => {},
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    dispatchEvent: () => false
+  })
+});
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import { afterAll, afterEach, beforeAll } from 'vitest';

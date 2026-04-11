@@ -15,7 +15,10 @@
     },
     "error": {
       "load": "gagal memuat tugas.",
-      "retry": "coba lagi"
+      "retry": "coba lagi",
+      "create": "gagal membuat tugas.",
+      "update": "gagal memperbarui tugas.",
+      "delete": "gagal menghapus tugas."
     },
     "aria": {
       "markComplete": "Tandai \"{{name}}\" sebagai selesai",

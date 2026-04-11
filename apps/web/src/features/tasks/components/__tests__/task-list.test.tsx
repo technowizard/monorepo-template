@@ -1,8 +1,8 @@
 import { fireEvent } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { Task } from '@/features/tasks/api/get-tasks';
 import { render, screen } from '@/tests/test-utils';
-import type { Task } from '@/types/api';
 
 import { TaskList } from '../task-list';
 

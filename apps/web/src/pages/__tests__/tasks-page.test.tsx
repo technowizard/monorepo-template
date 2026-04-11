@@ -1,31 +1,26 @@
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import type React from 'react';
+import { describe, expect, it, vi } from 'vitest';
 
-import { useTaskFilterStore } from '@/stores/task-filter';
 import { defaultTasks } from '@/tests/mocks/handlers';
 import { server } from '@/tests/mocks/server';
-import { render, screen, waitFor } from '@/tests/test-utils';
-
-import { TasksPage } from '../tasks';
+import { renderPage, screen, waitFor } from '@/tests/test-utils';
 
 vi.mock('next-themes', () => ({
+  ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
   useTheme: () => ({ theme: 'light', setTheme: vi.fn() })
 }));
 
-afterEach(() => {
-  useTaskFilterStore.setState({ filter: 'all' });
-});
-
 describe('TasksPage', () => {
   it('shows the tasks heading', async () => {
-    render(<TasksPage />);
+    renderPage();
 
     expect(await screen.findByRole('heading', { name: /tasks/i })).toBeInTheDocument();
   });
 
   it('loads and displays tasks from the API', async () => {
-    render(<TasksPage />);
+    renderPage();
 
     expect(await screen.findByText('buy groceries')).toBeInTheDocument();
     expect(screen.getByText('fix bug')).toBeInTheDocument();
@@ -33,7 +28,7 @@ describe('TasksPage', () => {
   });
 
   it('shows correct active task count', async () => {
-    render(<TasksPage />);
+    renderPage();
 
     // defaultTasks has 2 active, 1 completed
     expect(await screen.findByText('2 remaining')).toBeInTheDocument();
@@ -48,9 +43,12 @@ describe('TasksPage', () => {
       })
     );
 
-    const { container } = render(<TasksPage />);
+    const { container } = renderPage();
 
-    expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0);
+    // router mounts the page asynchronously, wait for the skeleton to appear
+    await waitFor(() =>
+      expect(container.querySelectorAll('[data-slot="skeleton"]').length).toBeGreaterThan(0)
+    );
     expect(await screen.findByText('buy groceries')).toBeInTheDocument();
   });
 
@@ -61,14 +59,14 @@ describe('TasksPage', () => {
       })
     );
 
-    render(<TasksPage />);
+    renderPage();
 
     expect(await screen.findByText('failed to load tasks.')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 
   it('filters to active tasks when "active" tab is clicked', async () => {
-    render(<TasksPage />);
+    renderPage();
     await screen.findByText('buy groceries');
 
     await userEvent.click(screen.getByRole('button', { name: /active/i }));
@@ -79,7 +77,7 @@ describe('TasksPage', () => {
   });
 
   it('filters to done tasks when "done" tab is clicked', async () => {
-    render(<TasksPage />);
+    renderPage();
     await screen.findByText('buy groceries');
 
     await userEvent.click(screen.getByRole('button', { name: /done/i }));
@@ -95,7 +93,7 @@ describe('TasksPage', () => {
       })
     );
 
-    render(<TasksPage />);
+    renderPage();
     await screen.findByText('write tests');
 
     await userEvent.click(screen.getByRole('button', { name: /active/i }));
@@ -129,7 +127,7 @@ describe('TasksPage', () => {
       })
     );
 
-    render(<TasksPage />);
+    renderPage();
     await screen.findByText('buy groceries');
 
     await userEvent.type(screen.getByPlaceholderText('add a task...'), 'new task');

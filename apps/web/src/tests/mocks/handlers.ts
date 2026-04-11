@@ -1,6 +1,9 @@
+import type { InferResponseType } from 'hono/client';
 import { http, HttpResponse } from 'msw';
 
-import type { Task } from '@/types/api';
+import type { ApiClient } from '@/lib/api-client';
+
+type Task = InferResponseType<ApiClient['tasks']['$get'], 200>['result'][number];
 
 const API_URL = 'http://localhost:3000';
 
@@ -49,7 +52,7 @@ export const handlers = [
   http.patch(`${API_URL}/tasks/:id`, async ({ request, params }) => {
     const body = (await request.json()) as Partial<Task>;
     const task = defaultTasks.find((t) => t.id === params.id) ?? defaultTasks[0]!;
-    const updated: Task = { ...task, ...body, updatedAt: new Date().toISOString() } as Task;
+    const updated: Task = { ...task, ...body, updatedAt: new Date().toISOString() };
     return HttpResponse.json({ result: updated, message: 'ok', status: 200 });
   }),
 

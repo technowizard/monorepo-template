@@ -1,20 +1,20 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { z } from 'zod';
+import { useMutation } from '@tanstack/react-query';
+import type { InferRequestType, InferResponseType } from 'hono/client';
 
 import { apiClient } from '@/lib/api-client';
 import type { MutationConfig } from '@/lib/react-query';
 
-import { getTasksQueryOptions } from './get-tasks';
+import { taskKeys } from './query-keys';
 
-export const createTaskBodySchema = z.object({
-  name: z.string(),
-  completed: z.boolean().optional()
-});
+type CreateTaskBody = InferRequestType<typeof apiClient.tasks.$post>['json'];
+type CreateTaskResponse = InferResponseType<typeof apiClient.tasks.$post, 201>;
 
-export type CreateTaskBody = z.infer<typeof createTaskBodySchema>;
+export const createTask = async (body: CreateTaskBody): Promise<CreateTaskResponse> => {
+  const response = await apiClient.tasks.$post({ json: body });
 
-export const createTask = async (input: CreateTaskBody) => {
-  const response = await apiClient.post('tasks', input);
+  if (!response.ok) {
+    throw new Error('Failed to create task');
+  }
 
   return response.json();
 };
@@ -23,20 +23,9 @@ type UseCreateTaskOptions = {
   mutationConfig?: MutationConfig<typeof createTask>;
 };
 
-export const useCreateTask = ({ mutationConfig }: UseCreateTaskOptions = {}) => {
-  const queryClient = useQueryClient();
-
-  const { onSuccess, ...restConfig } = mutationConfig ?? {};
-
-  return useMutation({
-    onSuccess: (...args) => {
-      queryClient.invalidateQueries({
-        queryKey: getTasksQueryOptions().queryKey
-      });
-
-      onSuccess?.(...args);
-    },
-    ...restConfig,
-    mutationFn: createTask
+export const useCreateTask = ({ mutationConfig }: UseCreateTaskOptions = {}) =>
+  useMutation({
+    ...mutationConfig,
+    mutationFn: createTask,
+    meta: { invalidates: [taskKeys.all] }
   });
-};

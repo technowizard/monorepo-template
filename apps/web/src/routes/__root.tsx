@@ -4,11 +4,11 @@ import { ThemeProvider } from 'next-themes';
 
 import { ErrorFallback } from '@/components/common/error';
 import { NotFound } from '@/components/common/not-found';
+import { Notifications } from '@/components/common/notifications';
 import { TanstackQueryDevTools } from '@/components/devtools/ts-query';
 import { TanstackRouterDevTools } from '@/components/devtools/ts-router';
 
-import { queryClient } from '@/lib/react-query';
-import { router } from '@/lib/router';
+import type { queryClient } from '@/lib/react-query';
 
 type RouterContext = {
   queryClient: typeof queryClient;
@@ -21,12 +21,15 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 });
 
 function RootComponent() {
+  const { queryClient: client } = Route.useRouteContext();
+
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-      <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={client}>
         <Outlet />
+        <Notifications />
         <TanstackQueryDevTools position="bottom" />
-        <TanstackRouterDevTools position="bottom-left" router={router} />
+        <TanstackRouterDevTools position="bottom-left" />
       </QueryClientProvider>
     </ThemeProvider>
   );
