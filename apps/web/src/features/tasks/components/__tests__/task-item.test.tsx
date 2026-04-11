@@ -2,9 +2,9 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 
+import type { Task } from '@/features/tasks/api/get-tasks';
 import { server } from '@/tests/mocks/server';
 import { render, screen, waitFor } from '@/tests/test-utils';
-import type { Task } from '@/types/api';
 
 import { TaskItem } from '../task-item';
 
