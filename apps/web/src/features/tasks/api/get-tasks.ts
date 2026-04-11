@@ -1,27 +1,49 @@
 import { queryOptions, useQuery } from '@tanstack/react-query';
-
-import type { ResponseOptions, Task } from '@/types/api';
+import type { InferResponseType } from 'hono/client';
 
 import { apiClient } from '@/lib/api-client';
 import type { QueryConfig } from '@/lib/react-query';
 
-export const getTasks = async () => {
-  const response = await apiClient.get('tasks');
+import { taskKeys } from './query-keys';
 
-  return response.json<ResponseOptions<Task[]>>();
+type TasksResponse = InferResponseType<typeof apiClient.tasks.$get, 200>;
+
+export type Task = TasksResponse['result'][number];
+export type TaskFilter = 'all' | 'active' | 'done';
+
+export const getTasks = async (): Promise<TasksResponse> => {
+  const response = await apiClient.tasks.$get();
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch tasks');
+  }
+
+  return response.json();
 };
 
-export const getTasksQueryOptions = () => {
-  return queryOptions({
-    queryKey: ['tasks'],
-    queryFn: () => getTasks()
+export const filterTasks = (tasks: Task[], filter: TaskFilter): Task[] => {
+  if (filter === 'active') {
+    return tasks.filter((t) => !t.completed);
+  }
+
+  if (filter === 'done') {
+    return tasks.filter((t) => t.completed);
+  }
+
+  return tasks;
+};
+
+export const getTasksQueryOptions = (filter: TaskFilter = 'all') =>
+  queryOptions({
+    queryKey: taskKeys.list({ filter }),
+    queryFn: getTasks,
+    select: (data) => ({ ...data, result: filterTasks(data.result ?? [], filter) })
   });
-};
 
 type UseTasksOptions = {
+  filter?: TaskFilter;
   queryConfig?: QueryConfig<typeof getTasksQueryOptions>;
 };
 
-export const useGetTasks = ({ queryConfig }: UseTasksOptions = {}) => {
-  return useQuery({ ...getTasksQueryOptions(), ...queryConfig });
-};
+export const useGetTasks = ({ filter = 'all', queryConfig }: UseTasksOptions = {}) =>
+  useQuery({ ...getTasksQueryOptions(filter), ...queryConfig });

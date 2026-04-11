@@ -1,4 +1,18 @@
-import { QueryClient, type DefaultOptions, type UseMutationOptions } from '@tanstack/react-query';
+import {
+  MutationCache,
+  QueryClient,
+  type DefaultOptions,
+  type QueryKey,
+  type UseMutationOptions
+} from '@tanstack/react-query';
+
+declare module '@tanstack/react-query' {
+  interface Register {
+    mutationMeta: {
+      invalidates?: QueryKey[];
+    };
+  }
+}
 
 const queryConfig = {
   mutations: {
@@ -10,15 +24,37 @@ const queryConfig = {
     refetchOnMount: true,
     refetchOnReconnect: true,
     refetchOnWindowFocus: true,
-    retry: (failureCount) => {
-      return failureCount < 3;
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30_000),
+    retry: (failureCount: number) => failureCount < 3,
+    retryDelay: (attemptIndex: number) => Math.min(1000 * 2 ** attemptIndex, 30_000),
     staleTime: 5 * 60 * 1000
   }
 } satisfies DefaultOptions;
 
-export const queryClient = new QueryClient({ defaultOptions: queryConfig });
+export function createQueryClient() {
+  // `client` is declared first so the MutationCache closure can reference it
+  // by the time onSuccess fires, the assignment below has already run
+  let client: QueryClient;
+
+  const mutationCache = new MutationCache({
+    onSuccess: (_data, _variables, _context, mutation) => {
+      const keys = mutation.meta?.invalidates;
+
+      if (!keys?.length) {
+        return;
+      }
+
+      for (const queryKey of keys) {
+        client!.invalidateQueries({ queryKey });
+      }
+    }
+  });
+
+  client = new QueryClient({ defaultOptions: queryConfig, mutationCache });
+
+  return client;
+}
+
+export const queryClient = createQueryClient();
 
 export type ApiFnReturnType<FnType extends (...args: unknown[]) => Promise<unknown>> = Awaited<
   ReturnType<FnType>
