@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { Task } from '@/types/api';
+import type { Task } from '@/features/tasks/api/get-tasks';
 
 import { TaskItem } from './task-item';
 

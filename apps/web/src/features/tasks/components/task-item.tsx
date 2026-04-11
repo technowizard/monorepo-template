@@ -5,8 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useDeleteTask } from '@/features/tasks/api/delete-task';
+import type { Task } from '@/features/tasks/api/get-tasks';
 import { useUpdateTask } from '@/features/tasks/api/update-task';
-import type { Task } from '@/types/api';
+import { useNotificationsStore } from '@/stores/notifications';
 
 type TaskItemProps = {
   task: Task;
@@ -19,9 +20,16 @@ export function TaskItem({ task }: TaskItemProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { t } = useTranslation('common');
+  const add = useNotificationsStore.useAdd();
 
-  const updateTaskMutation = useUpdateTask({});
-  const deleteTaskMutation = useDeleteTask();
+  const updateTaskMutation = useUpdateTask({
+    mutationConfig: {
+      onError: () => add({ message: t('tasks.error.update'), type: 'error' })
+    }
+  });
+  const deleteTaskMutation = useDeleteTask({
+    mutationConfig: { onError: () => add({ message: t('tasks.error.delete'), type: 'error' }) }
+  });
 
   function startEditing() {
     setEditValue(task.name);
