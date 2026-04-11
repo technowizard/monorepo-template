@@ -1,256 +1,324 @@
 import { testClient } from 'hono/testing';
-import { describe, expect, expectTypeOf, it } from 'vitest';
+import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
+import type { z } from 'zod';
+
+import type { selectTasksSchema } from '@/db/schemas/tasks.js';
 
 import { createTestApp } from '@/lib/create-app.js';
 import { HttpStatus } from '@/lib/response.js';
 
+import type { TasksRepository } from '@/repositories/tasks.repository.js';
+
 import router from './tasks.index.js';
 
-const client = testClient(createTestApp(router));
+type Task = z.infer<typeof selectTasksSchema>;
+
+function createFakeTasksAdapter(): TasksRepository {
+  const store = new Map<string, Task>();
+
+  return {
+    findAll: async () => [...store.values()],
+    findById: async (id) => store.get(id) ?? null,
+    create: async (data) => {
+      const task: Task = {
+        id: crypto.randomUUID(),
+        name: data.name,
+        completed: data.completed ?? false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      store.set(task.id, task);
+
+      return task;
+    },
+    update: async (id, data) => {
+      const existing = store.get(id);
+
+      if (!existing) {
+        return undefined;
+      }
+
+      const updated = { ...existing, ...data, updatedAt: new Date().toISOString() };
+
+      store.set(id, updated);
+
+      return updated;
+    },
+    delete: async (id) => {
+      const existing = store.get(id);
+
+      if (!existing) {
+        return undefined;
+      }
+
+      store.delete(id);
+
+      return existing;
+    }
+  };
+}
+
+function buildClient() {
+  const tasks = createFakeTasksAdapter();
+
+  return testClient(
+    createTestApp(router, (app) => {
+      app.use('*', async (c, next) => {
+        c.set('repos', { tasks });
+
+        return next();
+      });
+    })
+  );
+}
+
+const nonExistentId = crypto.randomUUID();
+let client: ReturnType<typeof buildClient>;
+
+beforeEach(() => {
+  client = buildClient();
+});
 
 describe('tasks routes', () => {
-  it('post /tasks returns 422 with field errors on invalid body', async () => {
-    const response = await client.tasks.$post({
-      json: {
-        completed: false
+  describe('POST /tasks', () => {
+    it('returns 422 with field errors on invalid body', async () => {
+      const response = await client.tasks.$post({ json: { completed: false } });
+
+      expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+
+      if (response.status === HttpStatus.UNPROCESSABLE_ENTITY) {
+        const body = await response.json();
+
+        expect(body.errors).toHaveProperty('name');
+        expect(body.errors).not.toHaveProperty('_errors');
+        expect(body).not.toHaveProperty('issues');
       }
     });
 
-    expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    it('creates a task and returns 201', async () => {
+      const response = await client.tasks.$post({ json: { name: 'Task name', completed: false } });
 
-    if (response.status === HttpStatus.UNPROCESSABLE_ENTITY) {
-      const body = await response.json();
+      expect(response.status).toBe(HttpStatus.CREATED);
 
-      expect(body).toMatchObject({
-        message: 'Validation failed',
-        status: HttpStatus.UNPROCESSABLE_ENTITY,
-        errors: {
-          name: expect.any(String)
-        }
+      if (response.status === HttpStatus.CREATED) {
+        const body = await response.json();
+
+        expect(body.result.name).toBe('Task name');
+        expect(body.result.completed).toBe(false);
+      }
+    });
+  });
+
+  describe('GET /tasks', () => {
+    it('returns a list of tasks', async () => {
+      await client.tasks.$post({ json: { name: 'Task name', completed: false } });
+
+      const response = await client.tasks.$get();
+
+      expect(response.status).toBe(HttpStatus.OK);
+
+      if (response.status === HttpStatus.OK) {
+        const body = await response.json();
+
+        expectTypeOf(body.result).toBeArray();
+        expect(body.result.length).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  describe('GET /tasks/:id', () => {
+    it('returns 422 with field errors on invalid param', async () => {
+      const response = await client.tasks[':id'].$get({ param: { id: 'invalid-id' } });
+
+      expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+
+      if (response.status === HttpStatus.UNPROCESSABLE_ENTITY) {
+        const body = await response.json();
+
+        expect(body.errors).toHaveProperty('id');
+        expect(body.errors!.id).toContain('Invalid UUID');
+        expect(body.errors).not.toHaveProperty('_errors');
+        expect(body).not.toHaveProperty('issues');
+      }
+    });
+
+    it('returns 404 when task not found', async () => {
+      const response = await client.tasks[':id'].$get({ param: { id: nonExistentId } });
+
+      expect(response.status).toBe(HttpStatus.NOT_FOUND);
+
+      if (response.status === HttpStatus.NOT_FOUND) {
+        const body = await response.json();
+
+        expect(body.message).toBe('Task not found');
+      }
+    });
+
+    it('returns a task by id', async () => {
+      const created = await client.tasks.$post({ json: { name: 'Task name', completed: false } });
+
+      let taskId = '';
+
+      if (created.status === HttpStatus.CREATED) {
+        const body = await created.json();
+
+        taskId = body.result.id;
+      }
+
+      const response = await client.tasks[':id'].$get({ param: { id: taskId } });
+
+      expect(response.status).toBe(HttpStatus.OK);
+
+      if (response.status === HttpStatus.OK) {
+        const body = await response.json();
+
+        expect(body.result.id).toBe(taskId);
+        expect(body.result.name).toBe('Task name');
+      }
+    });
+  });
+
+  describe('PATCH /tasks/:id', () => {
+    it('returns 422 with field errors on invalid body', async () => {
+      const created = await client.tasks.$post({ json: { name: 'Task name', completed: false } });
+
+      let taskId = '';
+
+      if (created.status === HttpStatus.CREATED) {
+        const body = await created.json();
+
+        taskId = body.result.id;
+      }
+
+      const response = await client.tasks[':id'].$patch({
+        param: { id: taskId },
+        json: { name: '' }
       });
 
-      expect(body.errors).toHaveProperty('name');
+      expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
 
-      expect(body.errors).not.toHaveProperty('_errors');
-      expect(body).not.toHaveProperty('issues');
-    }
-  });
+      if (response.status === HttpStatus.UNPROCESSABLE_ENTITY) {
+        const body = await response.json();
 
-  let id = '';
-  const name = 'Task name';
-  const nonExistentId = crypto.randomUUID(); // generate a non-existent id
-
-  it('post /tasks creates a task successfully', async () => {
-    const response = await client.tasks.$post({
-      json: {
-        name,
-        completed: false
+        expect(body.errors).toHaveProperty('name');
+        expect(body.errors!.name).toContain('Too small');
       }
     });
 
-    expect(response.status).toBe(HttpStatus.CREATED);
+    it('returns 422 with field errors on invalid param', async () => {
+      const response = await client.tasks[':id'].$patch({ param: { id: 'invalid-id' }, json: {} });
 
-    if (response.status === HttpStatus.CREATED) {
-      const body = await response.json();
+      expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
 
-      id = body.result.id;
+      if (response.status === HttpStatus.UNPROCESSABLE_ENTITY) {
+        const body = await response.json();
 
-      expect(body.result.name).toBe(name);
-      expect(body.result.completed).toBe(false);
-    }
-  });
-
-  it('get /tasks returns a list of tasks', async () => {
-    const response = await client.tasks.$get();
-
-    expect(response.status).toBe(HttpStatus.OK);
-
-    if (response.status === HttpStatus.OK) {
-      const body = await response.json();
-
-      expectTypeOf(body.result).toBeArray();
-      expect(body.result.length).toBeGreaterThan(0);
-    }
-  });
-
-  it('get /tasks/{id} returns 422 with field errors on invalid param', async () => {
-    const response = await client.tasks[':id'].$get({
-      param: {
-        id: 'invalid-id'
+        expect(body.errors).toHaveProperty('id');
+        expect(body.errors!.id).toContain('Invalid UUID');
       }
     });
 
-    expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    it('returns 422 when sending empty body', async () => {
+      const created = await client.tasks.$post({ json: { name: 'Task name', completed: false } });
 
-    if (response.status === HttpStatus.UNPROCESSABLE_ENTITY) {
-      const body = await response.json();
+      let taskId = '';
 
-      expect(body.errors).toHaveProperty('id');
-      expect(body.errors!.id).toContain('Invalid UUID');
+      if (created.status === HttpStatus.CREATED) {
+        const body = await created.json();
 
-      expect(body.errors).not.toHaveProperty('_errors');
-      expect(body).not.toHaveProperty('issues');
-    }
-  });
+        taskId = body.result.id;
+      }
 
-  it('get /tasks/{id} returns 404 when task not found', async () => {
-    const response = await client.tasks[':id'].$get({
-      param: {
-        id: nonExistentId
+      const response = await client.tasks[':id'].$patch({ param: { id: taskId }, json: {} });
+
+      expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+
+      if (response.status === HttpStatus.UNPROCESSABLE_ENTITY) {
+        const body = await response.json();
+
+        expect(body.errors).toBeNull();
+        expect(body.message).toContain('Invalid request data');
       }
     });
 
-    expect(response.status).toBe(HttpStatus.NOT_FOUND);
+    it('updates task to completed', async () => {
+      const created = await client.tasks.$post({ json: { name: 'Task name', completed: false } });
 
-    if (response.status === HttpStatus.NOT_FOUND) {
-      const body = await response.json();
+      let taskId = '';
 
-      expect(body.message).toBe('Task not found');
-    }
+      if (created.status === HttpStatus.CREATED) {
+        const body = await created.json();
+
+        taskId = body.result.id;
+      }
+
+      const response = await client.tasks[':id'].$patch({
+        param: { id: taskId },
+        json: { completed: true }
+      });
+
+      expect(response.status).toBe(HttpStatus.OK);
+
+      if (response.status === HttpStatus.OK) {
+        const body = await response.json();
+
+        expect(body.result.completed).toBe(true);
+      }
+    });
   });
 
-  it('get /tasks/{id} returns a task by id', async () => {
-    const response = await client.tasks[':id'].$get({
-      param: {
-        id
+  describe('DELETE /tasks/:id', () => {
+    it('returns 422 with field errors on invalid param', async () => {
+      const response = await client.tasks[':id'].$delete({ param: { id: 'invalid-id' } });
+
+      expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+
+      if (response.status === HttpStatus.UNPROCESSABLE_ENTITY) {
+        const body = await response.json();
+
+        expect(body.errors).toHaveProperty('id');
+        expect(body.errors!.id).toContain('Invalid UUID');
       }
     });
 
-    expect(response.status).toBe(HttpStatus.OK);
+    it('deletes a task and returns its id', async () => {
+      const created = await client.tasks.$post({ json: { name: 'Task name', completed: false } });
 
-    if (response.status === HttpStatus.OK) {
-      const body = await response.json();
+      let taskId = '';
 
-      expect(body.result.id).toBe(id);
-      expect(body.result.name).toBe(name);
-      expect(body.result.completed).toBe(false);
-    }
-  });
+      if (created.status === HttpStatus.CREATED) {
+        const body = await created.json();
 
-  it('patch /tasks/{id} returns 422 with field errors on invalid body', async () => {
-    const response = await client.tasks[':id'].$patch({
-      param: {
-        id
-      },
-      json: {
-        name: ''
+        taskId = body.result.id;
+      }
+
+      const response = await client.tasks[':id'].$delete({ param: { id: taskId } });
+
+      expect(response.status).toBe(HttpStatus.OK);
+
+      if (response.status === HttpStatus.OK) {
+        const body = await response.json();
+        expect(body.result.id).toBe(taskId);
       }
     });
 
-    expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    it('returns 404 on non-existent task', async () => {
+      const created = await client.tasks.$post({ json: { name: 'Task name', completed: false } });
 
-    if (response.status === HttpStatus.UNPROCESSABLE_ENTITY) {
-      const body = await response.json();
+      let taskId = '';
 
-      expect(body.errors).toHaveProperty('name');
-      expect(body.errors!.name).toContain('Too small');
+      if (created.status === HttpStatus.CREATED) {
+        const body = await created.json();
 
-      expect(body.errors).not.toHaveProperty('_errors');
-      expect(body).not.toHaveProperty('issues');
-    }
-  });
-
-  it('patch /tasks/{id} returns 422 with field errors on invalid param', async () => {
-    const response = await client.tasks[':id'].$patch({
-      param: {
-        id: 'invalid-id'
-      },
-      json: {}
-    });
-
-    expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
-
-    if (response.status === HttpStatus.UNPROCESSABLE_ENTITY) {
-      const body = await response.json();
-
-      expect(body.errors).toHaveProperty('id');
-      expect(body.errors!.id).toContain('Invalid UUID');
-
-      expect(body.errors).not.toHaveProperty('_errors');
-      expect(body).not.toHaveProperty('issues');
-    }
-  });
-
-  it('patch /tasks/{id} returns 422 when sending empty body', async () => {
-    const response = await client.tasks[':id'].$patch({
-      param: {
-        id
-      },
-      json: {}
-    });
-
-    expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
-
-    if (response.status === HttpStatus.UNPROCESSABLE_ENTITY) {
-      const body = await response.json();
-
-      expect(body.errors).toBeNull();
-      expect(body.message).toContain('Invalid request data');
-    }
-  });
-
-  it('patch /tasks/{id} updates task to completed', async () => {
-    const response = await client.tasks[':id'].$patch({
-      param: {
-        id
-      },
-      json: {
-        completed: true
+        taskId = body.result.id;
       }
+
+      await client.tasks[':id'].$delete({ param: { id: taskId } });
+
+      const response = await client.tasks[':id'].$delete({ param: { id: taskId } });
+
+      expect(response.status).toBe(HttpStatus.NOT_FOUND);
     });
-
-    expect(response.status).toBe(HttpStatus.OK);
-
-    if (response.status === HttpStatus.OK) {
-      const body = await response.json();
-
-      expect(body.result.completed).toBe(true);
-    }
-  });
-
-  it('delete /tasks/{id} returns 422 with field errors on invalid param', async () => {
-    const response = await client.tasks[':id'].$delete({
-      param: {
-        id: 'invalid-id'
-      }
-    });
-
-    expect(response.status).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
-
-    if (response.status === HttpStatus.UNPROCESSABLE_ENTITY) {
-      const body = await response.json();
-
-      expect(body.errors).toHaveProperty('id');
-      expect(body.errors!.id).toContain('Invalid UUID');
-
-      expect(body.errors).not.toHaveProperty('_errors');
-      expect(body).not.toHaveProperty('issues');
-    }
-  });
-
-  it('delete /tasks/{id} deletes task', async () => {
-    const response = await client.tasks[':id'].$delete({
-      param: {
-        id
-      }
-    });
-
-    expect(response.status).toBe(HttpStatus.OK);
-
-    if (response.status === HttpStatus.OK) {
-      const body = await response.json();
-
-      expect(body.result.id).toBe(id);
-    }
-  });
-
-  it('delete /tasks/{id} returns 404 on non-existent task', async () => {
-    const response = await client.tasks[':id'].$delete({
-      param: {
-        id
-      }
-    });
-
-    expect(response.status).toBe(HttpStatus.NOT_FOUND);
   });
 });

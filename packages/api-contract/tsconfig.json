@@ -1,0 +1,7 @@
+{
+  "extends": "@monorepo-template/config/typescript/base.json",
+  "compilerOptions": {
+    "composite": true
+  },
+  "include": ["src/**/*"]
+}

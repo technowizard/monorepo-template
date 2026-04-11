@@ -1,19 +1,30 @@
+import { db } from './db/index.js';
+
 import configureOpenAPI from './lib/configure-open-api.js';
 import createApp from './lib/create-app.js';
+
+import { createDrizzleTasksAdapter } from './repositories/tasks.repository.js';
 
 import health from './routes/health/health.index.js';
 import tasks from './routes/tasks/tasks.index.js';
 
 const app = createApp();
 
-configureOpenAPI(app);
+const repos = {
+  tasks: createDrizzleTasksAdapter(db)
+  // future repos added here: users: createDrizzleUsersAdapter(db)
+};
 
-const routes = [health, tasks] as const;
+app.use('*', async (c, next) => {
+  c.set('repos', repos);
 
-routes.forEach((route) => {
-  app.route('/', route);
+  return next();
 });
 
-export type AppType = (typeof routes)[number];
+configureOpenAPI(app);
+
+const router = app.route('/', health).route('/', tasks);
+
+export type AppType = typeof router;
 
 export default app;

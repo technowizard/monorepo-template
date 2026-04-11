@@ -85,6 +85,13 @@ export default function createApp() {
   return app;
 }
 
-export function createTestApp<S extends Schema>(router: AppOpenAPI<S>) {
-  return createApp().route('/', router);
+export function createTestApp<S extends Schema>(
+  router: AppOpenAPI<S>,
+  setup?: (app: ReturnType<typeof createApp>) => void
+) {
+  const app = createApp();
+
+  setup?.(app);
+
+  return app.route('/', router);
 }
