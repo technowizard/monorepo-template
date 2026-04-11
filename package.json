@@ -16,6 +16,7 @@
     "typecheck": "pnpm -r typecheck",
     "db:push": "pnpm --filter server db:push",
     "db:migrate": "pnpm --filter server db:migrate",
+    "db:migrate:test": "pnpm --filter server db:migrate:test",
     "db:studio": "pnpm --filter server db:studio",
     "prepare": "husky",
     "commit": "cz"
@@ -30,7 +31,8 @@
     "husky": "^9.0.0",
     "lint-staged": "^15.0.0",
     "oxfmt": "^0.42.0",
-    "oxlint": "^1.57.0"
+    "oxlint": "^1.57.0",
+    "tsx": "catalog:"
   },
   "config": {
     "commitizen": {

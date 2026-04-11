@@ -18,6 +18,9 @@ catalogs:
     hono:
       specifier: ^4.10.8
       version: 4.12.9
+    tsx:
+      specifier: ^4.21.0
+      version: 4.21.0
     typescript:
       specifier: ^5.9.3
       version: 5.9.3
@@ -62,6 +65,9 @@ importers:
       oxlint:
         specifier: ^1.57.0
         version: 1.58.0
+      tsx:
+        specifier: 'catalog:'
+        version: 4.21.0
 
   apps/server:
     dependencies:
@@ -129,6 +135,9 @@ importers:
       drizzle-kit:
         specifier: ^0.31.8
         version: 0.31.10
+      pg-transactional-tests:
+        specifier: ^1.2.0
+        version: 1.2.0(pg@8.20.0)
       prettier:
         specifier: ^3.8.0
         version: 3.8.1
@@ -136,7 +145,7 @@ importers:
         specifier: 0.21.7
         version: 0.21.7(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(typescript@5.9.3)
       tsx:
-        specifier: ^4.21.0
+        specifier: 'catalog:'
         version: 4.21.0
       typescript:
         specifier: 'catalog:'
@@ -153,6 +162,9 @@ importers:
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.2.8
         version: 5.2.8
+      '@monorepo-template/api-contract':
+        specifier: workspace:*
+        version: link:../../packages/api-contract
       '@phosphor-icons/react':
         specifier: ^2.1.10
         version: 2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -180,6 +192,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      hono:
+        specifier: 'catalog:'
+        version: 4.12.9
       i18next:
         specifier: ^26.0.3
         version: 26.0.3(typescript@5.9.3)
@@ -189,9 +204,6 @@ importers:
       immer:
         specifier: ^11.1.4
         version: 11.1.4
-      ky:
-        specifier: ^1.8.1
-        version: 1.14.3
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -207,6 +219,9 @@ importers:
       shadcn:
         specifier: ^4.1.2
         version: 4.1.2(@types/node@25.5.0)(typescript@5.9.3)
+      sonner:
+        specifier: ^2.0.7
+        version: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
       tailwind-merge:
         specifier: ^3.4.0
         version: 3.5.0
@@ -268,6 +283,8 @@ importers:
       vitest:
         specifier: 'catalog:'
         version: 4.1.2(@types/node@25.5.0)(@vitest/ui@4.1.2)(jsdom@27.4.0(@noble/hashes@1.8.0))(msw@2.12.14(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+
+  packages/api-contract: {}
 
   packages/config: {}
 
@@ -3485,10 +3502,6 @@ packages:
     resolution: {integrity: sha512-o+NO+8WrRiQEE4/7nwRJhN1HWpVmJm511pBHUxPLtp0BUISzlBplORYSmTclCnJvQq2tKu/sgl3xVpkc7ZWuQQ==}
     engines: {node: '>=6'}
 
-  ky@1.14.3:
-    resolution: {integrity: sha512-9zy9lkjac+TR1c2tG+mkNSVlyOpInnWdSMiue4F+kq8TwJSgv6o8jhLRg8Ho6SnZ9wOYUq/yozts9qQCfk7bIw==}
-    engines: {node: '>=18'}
-
   levn@0.4.1:
     resolution: {integrity: sha512-+bT2uH4E5LGE7h/n3evcS/sQlJXCpIp6ym8OWJ5eV6+67Dsql/LaaT7qJBAt2rzfoa/5QBGBhxDix1dMt2kQKQ==}
     engines: {node: '>= 0.8.0'}
@@ -3985,6 +3998,11 @@ packages:
   pg-protocol@1.13.0:
     resolution: {integrity: sha512-zzdvXfS6v89r6v7OcFCHfHlyG/wvry1ALxZo4LqgUoy7W9xhBDMaqOuMiF3qEV45VqsN6rdlcehHrfDtlCPc8w==}
 
+  pg-transactional-tests@1.2.0:
+    resolution: {integrity: sha512-sfuq/TCJA9i/wG5LsCAPe7LuCOrMNbqDv+xWm2XSbiYA+5wMMaqgkku8fywmV6hTSKRpgM7vVTbWHHerNJiJzA==}
+    peerDependencies:
+      pg: '*'
+
   pg-types@2.2.0:
     resolution: {integrity: sha512-qTAAlrEsl8s4OiEQY69wDvcMIdQN6wdz5ojQiOy6YRMuynxenON0O5oCpJI6lshc6scgAY8qvJ2On/p+CXY0GA==}
     engines: {node: '>=4'}
@@ -4358,6 +4376,12 @@ packages:
 
   sonic-boom@4.2.1:
     resolution: {integrity: sha512-w6AxtubXa2wTXAUsZMMWERrsIRAdrK0Sc+FUytWvYAhBJLyuI4llrMIC1DtlNSdI99EI86KZum2MMq3EAZlF9Q==}
+
+  sonner@2.0.7:
+    resolution: {integrity: sha512-W6ZN4p58k8aDKA4XPcx2hpIQXBRAgyiWVkYhT7CvK6D3iAu7xjvVyhQHg2/iaKJZ1XVJ4r7XuwGL+WGEK37i9w==}
+    peerDependencies:
+      react: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
+      react-dom: ^18.0.0 || ^19.0.0 || ^19.0.0-rc
 
   source-map-js@1.2.1:
     resolution: {integrity: sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==}
@@ -6510,7 +6534,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.1.0
-      vitest: 4.1.2(@types/node@25.5.0)(@vitest/ui@4.1.2)(jsdom@27.4.0(@noble/hashes@1.8.0))(msw@2.12.14(@types/node@25.5.0)(typescript@5.9.3))(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(@types/node@25.5.0)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+      vitest: 4.1.2(@types/node@22.19.15)(@vitest/ui@4.1.2)(jsdom@27.4.0(@noble/hashes@1.8.0))(msw@2.12.14(@types/node@22.19.15)(typescript@5.9.3))(vite@8.0.3(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)(@types/node@22.19.15)(esbuild@0.27.4)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
 
   '@vitest/utils@4.1.2':
     dependencies:
@@ -7884,8 +7908,6 @@ snapshots:
 
   kleur@4.1.5: {}
 
-  ky@1.14.3: {}
-
   levn@0.4.1:
     dependencies:
       prelude-ls: 1.2.1
@@ -8387,6 +8409,10 @@ snapshots:
 
   pg-protocol@1.13.0: {}
 
+  pg-transactional-tests@1.2.0(pg@8.20.0):
+    dependencies:
+      pg: 8.20.0
+
   pg-types@2.2.0:
     dependencies:
       pg-int8: 1.0.1
@@ -8827,6 +8853,11 @@ snapshots:
   sonic-boom@4.2.1:
     dependencies:
       atomic-sleep: 1.0.0
+
+  sonner@2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4):
+    dependencies:
+      react: 19.2.4
+      react-dom: 19.2.4(react@19.2.4)
 
   source-map-js@1.2.1: {}
 
