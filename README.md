@@ -8,10 +8,12 @@ An opinionated full-stack monorepo template with a React frontend and a Hono API
 
 - [React 19](https://react.dev) + [TypeScript](https://www.typescriptlang.org)
 - [Vite 8](https://vite.dev) - build tool and dev server
-- [TanStack Router](https://tanstack.com/router) - file-based routing
-- [TanStack Query](https://tanstack.com/query) - server state and data fetching
+- [TanStack Router](https://tanstack.com/router) - file-based routing with typed URL search params
+- [TanStack Query](https://tanstack.com/query) - server state, centralized mutation invalidation via `MutationCache`
+- [Hono RPC client](https://hono.dev/docs/guides/rpc) (`hc<AppType>()`) - end-to-end type-safe API calls via `packages/api-contract`
 - [Tailwind CSS v4](https://tailwindcss.com) + [shadcn/ui](https://ui.shadcn.com) (Base UI variant)
 - [i18next](https://www.i18next.com) - i18n with EN/ID support out of the box
+- [Zustand](https://zustand-demo.pmnd.rs) + [Immer](https://immerjs.github.io/immer) - client-only state (ephemeral UI state that doesn't belong in the URL or server cache)
 - [Vitest](https://vitest.dev) + [Testing Library](https://testing-library.com) + [MSW](https://mswjs.io) - unit and integration tests
 
 **Backend** (`apps/server`)
@@ -20,7 +22,7 @@ An opinionated full-stack monorepo template with a React frontend and a Hono API
 - [Drizzle ORM](https://orm.drizzle.team) + PostgreSQL - type-safe database access
 - [Zod](https://zod.dev) - request/response validation
 - OpenAPI docs via `@hono/zod-openapi` + Scalar UI
-- [Vitest](https://vitest.dev) - integration tests against a real database
+- [Vitest](https://vitest.dev) - handler tests with an in-memory fake adapter, no database required
 
 **Monorepo**
 
@@ -37,11 +39,10 @@ monorepo-template/
 ├── apps/
 │   ├── server/          # Hono API server
 │   │   └── src/
-│   │       ├── db/      # Drizzle schema and migrations
-│   │       ├── routes/  # Route definitions and handlers
-│   │       ├── services/
-│   │       ├── repositories/
-│   │       └── tests/   # Integration tests
+│   │       ├── db/           # Drizzle schema and migrations
+│   │       ├── routes/       # Route definitions and handlers
+│   │       ├── repositories/ # Repository interfaces and Drizzle adapters
+│   │       └── tests/        # Test utilities and global setup
 │   └── web/             # React frontend
 │       └── src/
 │           ├── features/   # Feature-scoped components and API hooks
@@ -52,6 +53,7 @@ monorepo-template/
 │           ├── locales/    # en / id translation files
 │           └── tests/      # Test utilities, MSW handlers
 └── packages/
+    ├── api-contract/    # Re-exports AppType from server — zero runtime, browser-safe
     └── config/          # Shared TypeScript configs
 ```
 
@@ -161,6 +163,21 @@ pnpm db:migrate
 pnpm db:studio
 ```
 
+### Adding a new schema
+
+When you replace or remove the example `tasks` schema with your own, generate and apply a migration before starting the server or running tests:
+
+```bash
+# 1. Edit or create your schema in apps/server/src/db/schemas/
+# 2. Generate the migration file
+pnpm db:migrate
+
+# 3. Apply to your test database as well
+pnpm db:migrate:test
+```
+
+Drizzle compares your schema against the current database state and generates the SQL diff. Skipping this step will cause startup errors or test failures if the table doesn't exist yet
+
 ## Testing
 
 ```bash
@@ -172,9 +189,13 @@ pnpm test:web
 pnpm test:server
 ```
 
-**Frontend tests** use Vitest + Testing Library + MSW. MSW intercepts `fetch` at the network layer, so tests exercise the full component → hook → API client chain without a running server
+**Frontend tests** use Vitest + Testing Library + MSW. MSW intercepts `fetch` at the network layer, so tests exercise the full component → hook → API client chain without a running server.
 
-**Backend tests** are integration tests that require a real Postgres database. The test runner automatically applies migrations before the suite runs (`pnpm db:migrate:test`). Set up `apps/server/.env.test` with a separate test database before running
+Page-level tests use `renderPage()` from `tests/test-utils`, which spins up a TanStack Router instance with a fresh, isolated `QueryClient` per test. This lets tests exercise URL search params and navigation without any global state cleanup. Component-level tests use the simpler `render()` helper which provides only a `QueryClientProvider`.
+
+**Backend tests** use a `Map`-backed fake adapter injected via Hono context — no database required to run the handler suite. The global setup still applies migrations once before the suite starts (`pnpm db:migrate:test`), but individual tests are fully isolated in memory. Set up `apps/server/.env.test` with a test database before running.
+
+**Test isolation:** each `it` block gets a fresh adapter instance (backend via `beforeEach`) or a fresh router + query client (frontend via `renderPage()`). Tests are independent — run them in any order, skip any one, and the others still pass
 
 ## Code quality
 
@@ -278,8 +299,22 @@ The frontend follows a feature-slice pattern. Each feature lives under `src/feat
 
 ```
 features/tasks/
-├── api/          # React Query hooks (get, create, update, delete)
-└── components/   # Feature-specific UI components
+├── api/
+│   ├── query-keys.ts   # Hierarchical query key factory
+│   ├── get-tasks.ts    # useGetTasks — list query with optional filter via select
+│   ├── get-task.ts     # useGetTask — single item query
+│   ├── create-task.ts  # useCreateTask — mutation with meta.invalidates
+│   ├── update-task.ts  # useUpdateTask — mutation with meta.invalidates
+│   └── delete-task.ts  # useDeleteTask — mutation with meta.invalidates
+└── components/         # Feature-specific UI components
 ```
 
-Page-level components go in `src/pages/` and are referenced from `src/routes/`
+Page-level components go in `src/pages/` and are referenced from `src/routes/`.
+
+**Client state (Zustand):** use `src/stores/` for ephemeral UI state that doesn't belong in the URL (e.g. notification queues, modal state, selected item IDs). Each store is created with `createSelectorHooks` so every field gets a free `useField()` hook, and state updates use Immer for safe mutations. See `stores/notifications.ts` for the pattern.
+
+**Query invalidation:** mutations declare `meta: { invalidates: [featureKeys.all] }`. The global `MutationCache` observer in `lib/react-query.ts` calls `invalidateQueries` automatically on success — no manual `queryClient.invalidateQueries` calls in mutation files.
+
+**URL state:** filter and other navigational state live in the URL as typed search params (`validateSearch` in the route file). Read them with `Route.useSearch()`, update them with `useNavigate`. This makes filter state bookmarkable, shareable, and restored on back navigation without any store reset in tests.
+
+**Typed API client:** `lib/api-client.ts` exports `apiClient = hc<AppType>(...)`. Use `InferResponseType` and `InferRequestType` from `hono/client` to derive request and response types directly from the server route definitions — no separate type files to maintain.
