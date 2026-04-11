@@ -15,7 +15,10 @@
     },
     "error": {
       "load": "failed to load tasks.",
-      "retry": "retry"
+      "retry": "retry",
+      "create": "failed to create task.",
+      "update": "failed to update task.",
+      "delete": "failed to delete task."
     },
     "aria": {
       "markComplete": "Mark \"{{name}}\" as complete",
