@@ -1,71 +1,20 @@
 import { testClient } from 'hono/testing';
 import { beforeEach, describe, expect, expectTypeOf, it } from 'vitest';
-import type { z } from 'zod';
 
-import type { selectTasksSchema } from '@/db/schemas/tasks.js';
+import { createInMemoryRepos } from '@/tests/in-memory/index.js';
 
 import { createTestApp } from '@/lib/create-app.js';
 import { HttpStatus } from '@/lib/response.js';
 
-import type { TasksRepository } from '@/repositories/tasks.repository.js';
-
 import router from './tasks.index.js';
 
-type Task = z.infer<typeof selectTasksSchema>;
-
-function createFakeTasksAdapter(): TasksRepository {
-  const store = new Map<string, Task>();
-
-  return {
-    findAll: async () => [...store.values()],
-    findById: async (id) => store.get(id) ?? null,
-    create: async (data) => {
-      const task: Task = {
-        id: crypto.randomUUID(),
-        name: data.name,
-        completed: data.completed ?? false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      store.set(task.id, task);
-
-      return task;
-    },
-    update: async (id, data) => {
-      const existing = store.get(id);
-
-      if (!existing) {
-        return undefined;
-      }
-
-      const updated = { ...existing, ...data, updatedAt: new Date().toISOString() };
-
-      store.set(id, updated);
-
-      return updated;
-    },
-    delete: async (id) => {
-      const existing = store.get(id);
-
-      if (!existing) {
-        return undefined;
-      }
-
-      store.delete(id);
-
-      return existing;
-    }
-  };
-}
-
 function buildClient() {
-  const tasks = createFakeTasksAdapter();
+  const repos = createInMemoryRepos();
 
   return testClient(
     createTestApp(router, (app) => {
       app.use('*', async (c, next) => {
-        c.set('repos', { tasks });
+        c.set('repos', repos);
 
         return next();
       });

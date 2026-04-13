@@ -22,7 +22,7 @@ An opinionated full-stack monorepo template with a React frontend and a Hono API
 - [Drizzle ORM](https://orm.drizzle.team) + PostgreSQL - type-safe database access
 - [Zod](https://zod.dev) - request/response validation
 - OpenAPI docs via `@hono/zod-openapi` + Scalar UI
-- [Vitest](https://vitest.dev) - handler tests with an in-memory fake adapter, no database required
+- [Vitest](https://vitest.dev) - handler tests with centralized in-memory adapters, no database required
 
 **Monorepo**
 
@@ -42,7 +42,8 @@ monorepo-template/
 │   │       ├── db/           # Drizzle schema and migrations
 │   │       ├── routes/       # Route definitions and handlers
 │   │       ├── repositories/ # Repository interfaces and Drizzle adapters
-│   │       └── tests/        # Test utilities and global setup
+│   │       └── tests/
+│   │           └── in-memory/  # In-memory adapters per repo + createInMemoryRepos()
 │   └── web/             # React frontend
 │       └── src/
 │           ├── features/   # Feature-scoped components and API hooks
@@ -193,7 +194,7 @@ pnpm test:server
 
 Page-level tests use `renderPage()` from `tests/test-utils`, which spins up a TanStack Router instance with a fresh, isolated `QueryClient` per test. This lets tests exercise URL search params and navigation without any global state cleanup. Component-level tests use the simpler `render()` helper which provides only a `QueryClientProvider`.
 
-**Backend tests** use a `Map`-backed fake adapter injected via Hono context — no database required to run the handler suite. The global setup still applies migrations once before the suite starts (`pnpm db:migrate:test`), but individual tests are fully isolated in memory. Set up `apps/server/.env.test` with a test database before running.
+**Backend tests** use in-memory adapters injected via Hono context — no database required to run the handler suite. Each adapter is a `Map`-backed implementation of the repository interface, centralized in `src/tests/in-memory/`. One file per repository, assembled into a single `createInMemoryRepos()` factory in `index.ts`. Test files import only that one function — `buildClient()` injects it into the app via `createTestApp`. The global setup still applies migrations once before the suite starts (`pnpm db:migrate:test`), but individual tests are fully isolated in memory. Set up `apps/server/.env.test` with a test database before running.
 
 **Test isolation:** each `it` block gets a fresh adapter instance (backend via `beforeEach`) or a fresh router + query client (frontend via `renderPage()`). Tests are independent — run them in any order, skip any one, and the others still pass
 
